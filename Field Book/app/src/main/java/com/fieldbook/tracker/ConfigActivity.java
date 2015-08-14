@@ -236,6 +236,8 @@ public class ConfigActivity extends Activity {
         CheckBox disableEntryNavRight = (CheckBox) advancedDialog.findViewById(R.id.disableEntryNavRight);
         CheckBox dataGrid = (CheckBox) advancedDialog.findViewById(R.id.dataGrid);
         CheckBox scannerMode =(CheckBox) advancedDialog.findViewById(R.id.scannerMode);
+        CheckBox multiTraitJump = (CheckBox) advancedDialog.findViewById(R.id.multiTraitJump);
+        CheckBox modeSwitch = (CheckBox) advancedDialog.findViewById(R.id.modeSwitch);
 
         Button advCloseBtn = (Button) advancedDialog.findViewById(R.id.closeBtn);
 
@@ -261,6 +263,8 @@ public class ConfigActivity extends Activity {
         disableEntryNavRight.setChecked(ep.getBoolean("DisableEntryNavRight", false));
         dataGrid.setChecked(ep.getBoolean("DataGrid", false));
         scannerMode.setChecked(ep.getBoolean("ScannerMode",false));
+        multiTraitJump.setChecked(ep.getBoolean("MultiTraitJump",false));
+        modeSwitch.setChecked(ep.getBoolean("ModeSwitch",false));
 
         tips.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 
@@ -406,6 +410,30 @@ public class ConfigActivity extends Activity {
                                          boolean checked) {
                 Editor e = ep.edit();
                 e.putBoolean("ScannerMode", checked);
+                e.apply();
+                MainActivity.reloadData = true;
+            }
+        });
+
+        multiTraitJump.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                Editor e = ep.edit();
+                e.putBoolean("MultiTraitJump", checked);
+                e.apply();
+                MainActivity.reloadData = true;
+            }
+        });
+
+        modeSwitch.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                Editor e = ep.edit();
+                e.putBoolean("ModeSwitch", checked);
+                e.putBoolean("MultiTraitJump",checked);
+                e.putBoolean("IgnoreExisting",checked);
                 e.apply();
                 MainActivity.reloadData = true;
             }

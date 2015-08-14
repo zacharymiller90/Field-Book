@@ -30,6 +30,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
@@ -37,6 +38,9 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -59,14 +63,13 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 
-import com.fieldbook.tracker.Barcodes.*;
-import com.fieldbook.tracker.Search.*;
-import com.fieldbook.tracker.Trait.*;
-import com.fieldbook.tracker.Tutorial.*;
+import com.fieldbook.tracker.Barcodes.IntentIntegrator;
+import com.fieldbook.tracker.Barcodes.IntentResult;
+import com.fieldbook.tracker.Fragments.ModeChangeFragment;
+import com.fieldbook.tracker.Search.SearchActivity;
+import com.fieldbook.tracker.Trait.TraitObject;
+import com.fieldbook.tracker.Tutorial.TutorialMainActivity;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -96,7 +99,7 @@ import java.util.TimerTask;
 /**
  * All main screen logic resides here
  */
-public class MainActivity extends Activity implements OnClickListener {
+public class MainActivity extends FragmentActivity implements OnClickListener, ModeChangeFragment.ModeSwapListener {
 
     /**
      * Other variables
@@ -1079,8 +1082,61 @@ public class MainActivity extends Activity implements OnClickListener {
                     if (rangeID != null && rangeID.length > 0) {
                         //index.setEnabled(true);
 
+                        if(ep.getBoolean("MultiTraitJump",false)) {
+                            //If multiTraitJump is on
+                            //Loop through previous plots
+                            int pos = paging;
+                            while(pos >= 0) {
+                                //Move to prev plot
+                                pos -= 1;
+                                if (pos < 1)
+                                    return;
+                                //Check traits
+                                String[] traitNames = dt.getVisibleTrait();
+                                String[] traitType = dt.getFormat();
+                                int traitHolder = -1;
+                                for(int traitCounter = 0; traitCounter<traitNames.length; traitCounter++) {
+                                    //if a trait already exists, break out
+                                    if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
+                                            traitType[traitCounter])) {
+                                        paging = pos;
+                                        traitHolder = traitCounter;
+                                        break;
+                                    }
+                                }
+                                if(traitHolder!=-1) {
+                                    int currentHolder = -1;
+                                    // Find index for currentTrait
+                                    for(int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
+                                        if(traitNames[currentTraitCounter].equals(currentTrait.trait)) {
+                                            currentHolder = currentTraitCounter;
+                                            break;
+                                        }
+                                    }
+
+                                    if(currentHolder == traitHolder) {
+                                        //do nothing
+                                        break;
+                                    }
+                                    else if(currentHolder > traitHolder) {
+                                        //Loop left currentHolder - traitHolder times
+                                        for(int loopCounter = 0; loopCounter < (currentHolder-traitHolder); loopCounter++) {
+                                            traitLeft.performClick();
+                                        }
+                                        break;
+                                    }
+                                    else {
+                                        //Loop traits right traitHolder - currentHolder
+                                        for(int loopCounter = 0; loopCounter < (traitHolder-currentHolder); loopCounter++) {
+                                            traitRight.performClick();
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         // If ignore existing data is enabled, then skip accordingly
-                        if (ep.getBoolean("IgnoreExisting", false)) {
+                        else if (ep.getBoolean("IgnoreExisting", false)) {
                             int pos = paging;
 
                             while (pos >= 0) {
@@ -1200,8 +1256,65 @@ public class MainActivity extends Activity implements OnClickListener {
                     if (rangeID != null && rangeID.length > 0) {
                         //index.setEnabled(true);
 
+                        if(ep.getBoolean("MultiTraitJump",false)) {
+                            //If multiTraitJump is on
+                            //Loop through previous plots
+                            int pos = paging;
+                            if (pos == rangeID.length) {
+                                pos = 1;
+                                return;
+                            }
+
+                            while (pos <= rangeID.length) {
+                                //Move to next plot
+                                pos += 1;
+
+                                //Check traits
+                                String[] traitNames = dt.getVisibleTrait();
+                                String[] traitType = dt.getFormat();
+                                int traitHolder = -1;
+                                for(int traitCounter = 0; traitCounter<traitNames.length; traitCounter++) {
+                                    //if a trait already exists, break out
+                                    if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
+                                            traitType[traitCounter])) {
+                                        paging = pos;
+                                        traitHolder = traitCounter;
+                                        break;
+                                    }
+                                }
+                                if(traitHolder!=-1) {
+                                    int currentHolder = -1;
+                                    // Find index for currentTrait
+                                    for(int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
+                                        if(traitNames[currentTraitCounter].equals(currentTrait.trait)) {
+                                            currentHolder = currentTraitCounter;
+                                            break;
+                                        }
+                                    }
+
+                                    if(currentHolder == traitHolder) {
+                                        //do nothing
+                                        break;
+                                    }
+                                    else if(currentHolder > traitHolder) {
+                                        //Loop left currentHolder - traitHolder times
+                                        for(int loopCounter = 0; loopCounter < (currentHolder-traitHolder); loopCounter++) {
+                                            traitLeft.performClick();
+                                        }
+                                        break;
+                                    }
+                                    else {
+                                        //Loop traits right traitHolder - currentHolder
+                                        for(int loopCounter = 0; loopCounter < (traitHolder-currentHolder); loopCounter++) {
+                                            traitRight.performClick();
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         // If ignore existing data is enabled, then skip accordingly
-                        if (ep.getBoolean("IgnoreExisting", false)) {
+                        else if (ep.getBoolean("IgnoreExisting", false)) {
                             int pos = paging;
 
                             if (pos == rangeID.length) {
@@ -1234,7 +1347,7 @@ public class MainActivity extends Activity implements OnClickListener {
                         cRange = dt.getRange(rangeID[paging - 1]);
 
                         Editor ed = ep.edit();
-                        ed.putString("lastplot",cRange.plot_id);
+                        ed.putString("lastplot", cRange.plot_id);
                         ed.apply();
 
                         displayRange(cRange);
@@ -4227,5 +4340,57 @@ public class MainActivity extends Activity implements OnClickListener {
             app_installed = false;
         }
         return app_installed;
+    }
+
+    //For Collection/Audit Mode slider Interface
+    public void modeSwap(int progress) {
+        if(progress==0) {
+            //Collection Mode
+            //Turn on hide entries
+            Editor edit = ep.edit();
+            edit.putBoolean("MultiTraitJump",true);
+            edit.putBoolean("IgnoreExisting",true);
+            edit.apply();
+        }
+        else {
+            //Audit Mode
+            Editor edit = ep.edit();
+            edit.putBoolean("MultiTraitJump", false);
+            edit.putBoolean("IgnoreExisting", false);
+            edit.apply();
+        }
+    }
+
+    //Method for mode to handle previous states
+    public void setMode() {
+        ep.getBoolean("MultiTraitJump",false);
+        ep.getBoolean("IgnoreExisting",false);
+        //If Both are false it should be in Audit Mode
+        if(!ep.getBoolean("MultiTraitJump",false) && !ep.getBoolean("IgnoreExisting",false)) {
+            //Get Fragment object
+            ModeChangeFragment fragment = (ModeChangeFragment)getSupportFragmentManager().findFragmentById(R.id.modeFragment);
+
+            //Set SeekBarProgress to 100
+            fragment.setProgress(100);
+            //Set "MultiTraitJump" and "IgnoreExisting" to false
+            //They should be already, but just to be sure
+            Editor edit = ep.edit();
+            edit.putBoolean("MultiTraitJump", false);
+            edit.putBoolean("IgnoreExisting", false);
+            edit.apply();
+        }
+        else {
+            //Get Fragment object
+            ModeChangeFragment fragment = (ModeChangeFragment)getSupportFragmentManager().findFragmentById(R.id.modeFragment);
+
+            //Set SeekBarProgress to 0
+            fragment.setProgress(0);
+            //Set "MultiTraitJump" and "IgnoreExisting" to true
+            //They should be already, but just to be sure
+            Editor edit = ep.edit();
+            edit.putBoolean("MultiTraitJump", true);
+            edit.putBoolean("IgnoreExisting", true);
+            edit.apply();
+        }
     }
 }

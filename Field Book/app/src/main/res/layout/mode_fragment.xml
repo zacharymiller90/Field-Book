@@ -1,0 +1,40 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/modeFragmentLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+
+    tools:context=".ModeChangeFragment"
+    >
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Collect"
+        android:paddingLeft="30px"
+        android:paddingRight="30px"
+        android:paddingTop="5px"
+        android:id="@+id/textView"
+        />
+    <SeekBar
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/seekBar"
+        android:layout_weight="1"
+        android:paddingLeft="30px"
+        android:paddingRight="30px"
+        android:paddingTop="5px"
+        android:progressDrawable="@drawable/custom_seek_bar_mode"
+        android:thumb="@drawable/custom_seek_bar_mode_thumb"
+        android:indeterminate="false" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Audit"
+        android:paddingLeft="30px"
+        android:paddingRight="30px"
+        android:paddingTop="5px"
+        android:id="@+id/textView2"
+        />
+</LinearLayout>

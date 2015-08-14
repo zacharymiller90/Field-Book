@@ -426,6 +426,21 @@
                         android:layout_width="fill_parent"
                         android:layout_height="wrap_content" />
 
+                    <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                        xmlns:tools="http://schemas.android.com/tools"
+                        android:id="@+id/fragment_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" >
+
+                        <fragment
+                            android:id="@+id/modeFragment"
+                            android:name="com.fieldbook.tracker.Fragments.ModeChangeFragment"
+                            tools:layout="@layout/mode_fragment"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
+                    </FrameLayout>
+
                 </LinearLayout>
             </ScrollView>
 
