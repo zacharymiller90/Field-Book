@@ -3,6 +3,7 @@ package com.fieldbook.tracker;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.support.v4.app.FragmentManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -30,6 +31,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -349,6 +351,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         traitType = (Spinner) findViewById(R.id.traitType);
         newTraits = new HashMap();
         traitDetails = (TextView) findViewById(R.id.traitDetails);
+
+        setMode();
 
         range.setOnEditorActionListener(new OnEditorActionListener() {
             public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
@@ -2792,6 +2796,25 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
             traitType.setSelection(traitPosition);
         }
+
+        if(ep.getBoolean("ModeSwitch",false)) {
+            //Get Fragment object
+            Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.modeFragment);
+
+            FragmentManager fm = getSupportFragmentManager();
+            fm.beginTransaction()
+                    .show(fragment)
+                    .commit();
+        }
+        else {
+            //Get Fragment object
+            Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.modeFragment);
+
+            FragmentManager fm = getSupportFragmentManager();
+            fm.beginTransaction()
+                    .hide(fragment)
+                    .commit();
+        }
     }
 
     // For audio trait type
@@ -3242,6 +3265,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 moveTo(rangeID, searchRange, searchPlot, true);
             }
         }
+        setMode();
     }
 
     /**
