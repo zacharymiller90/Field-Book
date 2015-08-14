@@ -408,11 +408,14 @@ public class MainActivity extends Activity implements OnClickListener {
         tNum.setOnEditorActionListener(new OnEditorActionListener() {
             public boolean onEditorAction(TextView exampleView, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_NULL && event.getAction() == KeyEvent.ACTION_DOWN) {
-                    rangeRight.performClick();
-
+                    if(ep.getBoolean("ScannerMode",false)==true) {
+                        traitRight.performClick();
+                    }
+                    else {
+                        rangeRight.performClick();
+                    }
                     return true;
                 }
-
                 return false;
             }
         });

@@ -235,6 +235,7 @@ public class ConfigActivity extends Activity {
         CheckBox disableEntryNavLeft = (CheckBox) advancedDialog.findViewById(R.id.disableEntryNavLeft);
         CheckBox disableEntryNavRight = (CheckBox) advancedDialog.findViewById(R.id.disableEntryNavRight);
         CheckBox dataGrid = (CheckBox) advancedDialog.findViewById(R.id.dataGrid);
+        CheckBox scannerMode =(CheckBox) advancedDialog.findViewById(R.id.scannerMode);
 
         Button advCloseBtn = (Button) advancedDialog.findViewById(R.id.closeBtn);
 
@@ -259,6 +260,7 @@ public class ConfigActivity extends Activity {
         disableEntryNavLeft.setChecked(ep.getBoolean("DisableEntryNavLeft", false));
         disableEntryNavRight.setChecked(ep.getBoolean("DisableEntryNavRight", false));
         dataGrid.setChecked(ep.getBoolean("DataGrid", false));
+        scannerMode.setChecked(ep.getBoolean("ScannerMode",false));
 
         tips.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 
@@ -393,6 +395,17 @@ public class ConfigActivity extends Activity {
                                          boolean checked) {
                 Editor e = ep.edit();
                 e.putBoolean("DataGrid", checked);
+                e.apply();
+                MainActivity.reloadData = true;
+            }
+        });
+
+        scannerMode.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                Editor e = ep.edit();
+                e.putBoolean("ScannerMode", checked);
                 e.apply();
                 MainActivity.reloadData = true;
             }

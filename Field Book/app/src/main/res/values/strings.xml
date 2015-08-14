@@ -100,6 +100,7 @@
     <string name="disableentrynavleft">Disable left entry arrow if no data collected</string>
     <string name="disableentrynavright">Disable right entry arrow if no data collected</string>
     <string name="barcodescan">Enables button that opens camera to scan barcode</string>
+    <string name="scannerMode">Enable USB Scanner Mode</string>
     <string name="rangechime">Notification sound when primary order changes</string>
     <string name="nextmissingenable">Enables button that moves to next entry with no data</string>
     <string name="jumptoplotid">Enables button that moves to specific unique identifier</string>
