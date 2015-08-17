@@ -498,7 +498,19 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
                 if (en.toString().length() >= 0) {
                     if (newTraits != null & currentTrait != null)
-                        updateTrait(currentTrait.trait, "text", en.toString());
+                        if(ep.getBoolean("ScannerMode",false)) {
+                            if(en.toString().matches("[a-zA-Z#]")) {
+                                //Ignore it
+                                System.out.println("Ignoring");
+                                tNum.setText("");
+                            }
+                            else {
+                                updateTrait(currentTrait.trait, "text",en.toString());
+                            }
+                        }
+                        else {
+                            updateTrait(currentTrait.trait, "text", en.toString());
+                        }
                 } else {
                     if (newTraits != null & currentTrait != null)
                         newTraits.remove(currentTrait.trait);
@@ -824,7 +836,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 day.setTextColor(Color.parseColor(displayColor));
             }
         });
-        
+
         //No Day Button
         noDayBtn.setOnClickListener(new OnClickListener() {
             public void onClick(View arg0) {
