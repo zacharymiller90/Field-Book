@@ -501,7 +501,6 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                         if(ep.getBoolean("ScannerMode",false)) {
                             if(en.toString().matches("[a-zA-Z#]")) {
                                 //Ignore it
-                                System.out.println("Ignoring");
                                 tNum.setText("");
                             }
                             else {
