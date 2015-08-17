@@ -3,7 +3,6 @@ package com.fieldbook.tracker;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.support.v4.app.FragmentManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -30,9 +29,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
+import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.DisplayMetrics;
@@ -563,6 +564,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         Button minusDayBtn = (Button) traitDate.findViewById(R.id.minusDateBtn);
         Button saveDayBtn = (Button) traitDate.findViewById(R.id.enterBtn);
         Button clearDate = (Button) traitDate.findViewById(R.id.clearDateBtn);
+        Button noDayBtn = (Button) traitDate.findViewById(R.id.noDateBtn);
 
         Button addCounterBtn = (Button) traitCounter.findViewById(R.id.addBtn);
         Button minusCounterBtn = (Button) traitCounter.findViewById(R.id.minusBtn);
@@ -809,7 +811,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 calendar.set(Calendar.DAY_OF_MONTH, i);
 
                 if (ep.getBoolean("UseDay", false)) {
-                    updateTrait(currentTrait.trait, "date",String.valueOf(calendar.get(Calendar.DAY_OF_YEAR)));
+                    updateTrait(currentTrait.trait, "date", String.valueOf(calendar.get(Calendar.DAY_OF_YEAR)));
                 } else {
                     updateTrait(currentTrait.trait, "date",
                             calendar.get(Calendar.YEAR) + "."
@@ -820,6 +822,30 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 // Change the text color accordingly
                 month.setTextColor(Color.parseColor(displayColor));
                 day.setTextColor(Color.parseColor(displayColor));
+            }
+        });
+        
+        //No Day Button
+        noDayBtn.setOnClickListener(new OnClickListener() {
+            public void onClick(View arg0) {
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.MONTH, 0);
+                calendar.set(Calendar.DAY_OF_MONTH, 1);
+                calendar.set(Calendar.YEAR, 2000);
+
+                day.setText(String.format("%02d", 1));
+                month.setText(getMonthForInt(0));
+
+
+                tempMonth = 0;
+                // Change the text color accordingly
+                if (newTraits.containsKey(currentTrait.trait)) {
+                    month.setTextColor(Color.BLUE);
+                    day.setTextColor(Color.BLUE);
+                } else {
+                    month.setTextColor(Color.BLACK);
+                    day.setTextColor(Color.BLACK);
+                }
             }
         });
 
@@ -1188,6 +1214,28 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                 } catch (Exception e) {
                                     ErrorLog("SoundError.txt", "" + e.getMessage());
                                 }
+                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                long[] pattern = {200l,200l,200l,200l,200l};
+                                v.vibrate(pattern, -1);
+                            }
+                            else {
+                                try {
+                                    int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
+                                    MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                                    chimePlayer.start();
+
+                                    chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                        public void onCompletion(MediaPlayer mp) {
+                                            mp.release();
+                                        }
+
+                                        ;
+                                    });
+                                } catch (Exception e) {
+                                    ErrorLog("SoundError.txt", "" + e.getMessage());
+                                }
+                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                v.vibrate(200l);
                             }
                         }
 
@@ -1372,6 +1420,28 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                 } catch (Exception e) {
                                     ErrorLog("SoundError.txt", "" + e.getMessage());
                                 }
+                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                long[] pattern = {200l,200l,200l,200l,200l};
+                                v.vibrate(pattern, -1);
+                            }
+                            else {
+                                try {
+                                    int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
+                                    MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                                    chimePlayer.start();
+
+                                    chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                        public void onCompletion(MediaPlayer mp) {
+                                            mp.release();
+                                        }
+
+                                        ;
+                                    });
+                                } catch (Exception e) {
+                                    ErrorLog("SoundError.txt", "" + e.getMessage());
+                                }
+                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                v.vibrate(200l);
                             }
                         }
                         newTraits = (HashMap) dt.getUserDetail(cRange.plot_id)
@@ -1674,6 +1744,28 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                     } catch (Exception e) {
                         ErrorLog("SoundError.txt", "" + e.getMessage());
                     }
+                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    long[] pattern = {200l,200l,200l,200l,200l};
+                    v.vibrate(pattern, -1);
+                }
+                else {
+                    try {
+                        int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
+                        MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                        chimePlayer.start();
+
+                        chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                            public void onCompletion(MediaPlayer mp) {
+                                mp.release();
+                            }
+
+                            ;
+                        });
+                    } catch (Exception e) {
+                        ErrorLog("SoundError.txt", "" + e.getMessage());
+                    }
+                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    v.vibrate(200l);
                 }
             }
 
@@ -1747,6 +1839,28 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                     } catch (Exception e) {
                         ErrorLog("SoundError.txt", "" + e.getMessage());
                     }
+                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    long[] pattern = {200l,200l,200l,200l,200l};
+                    v.vibrate(pattern, -1);
+                }
+                else {
+                    try {
+                        int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
+                        MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                        chimePlayer.start();
+
+                        chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                            public void onCompletion(MediaPlayer mp) {
+                                mp.release();
+                            }
+
+                            ;
+                        });
+                    } catch (Exception e) {
+                        ErrorLog("SoundError.txt", "" + e.getMessage());
+                    }
+                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    v.vibrate(200l);
                 }
             }
 
