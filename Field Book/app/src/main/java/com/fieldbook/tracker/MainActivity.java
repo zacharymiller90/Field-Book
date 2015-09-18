@@ -17,6 +17,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.AudioManager;
 import android.media.ExifInterface;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
@@ -31,6 +32,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.Vibrator;
 import android.provider.MediaStore;
+import android.speech.tts.TextToSpeech;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
@@ -71,6 +73,7 @@ import com.fieldbook.tracker.Barcodes.IntentIntegrator;
 import com.fieldbook.tracker.Barcodes.IntentResult;
 import com.fieldbook.tracker.Fragments.ModeChangeFragment;
 import com.fieldbook.tracker.Search.SearchActivity;
+import com.fieldbook.tracker.Speech.TextToSpeechFactory;
 import com.fieldbook.tracker.Trait.TraitObject;
 import com.fieldbook.tracker.Tutorial.TutorialMainActivity;
 
@@ -102,7 +105,7 @@ import java.util.TimerTask;
 /**
  * All main screen logic resides here
  */
-public class MainActivity extends FragmentActivity implements OnClickListener, ModeChangeFragment.ModeSwapListener {
+public class MainActivity extends FragmentActivity implements OnClickListener, ModeChangeFragment.ModeSwapListener{
 
     /**
      * Other variables
@@ -250,6 +253,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
     LinearLayout traitAudio;
     LinearLayout traitRustRating;
 
+    TextToSpeech tts;
+
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
@@ -264,6 +269,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         config2.locale = locale2;
         getBaseContext().getResources().updateConfiguration(config2, getBaseContext().getResources()
                 .getDisplayMetrics());
+
 
         loadScreen();
         checkNewVersion();
@@ -293,7 +299,12 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         if(ep.getBoolean("BarcodeScan",false)) {
             findViewById(R.id.plotSearchBox).setOnClickListener(this);
         }
+
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        tts = new TextToSpeechFactory(this).getTTS();
+        this.getResources().getConfiguration().locale.getDisplayName();
     }
+
 
     private void loadScreen() {
         setContentView(R.layout.main);
@@ -417,7 +428,188 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
             public boolean onEditorAction(TextView exampleView, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_NULL && event.getAction() == KeyEvent.ACTION_DOWN) {
                     if(ep.getBoolean("ScannerMode",false)==true) {
-                        traitRight.performClick();
+                        String textInput = tNum.getText().toString();
+                        //Check to see what was entered into tNum
+                        if(textInput.endsWith("Clear")) {
+                            tNum.setText("");
+                            updateTrait(currentTrait.trait, "text", "");
+                            String readBack = "Clearing Entry";
+                            tts.setLanguage(Locale.UK);
+                            if (!tts.isSpeaking()) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                        }
+                        else if(textInput.matches("([a-zA-Z]{2})#")) {
+                            //Handle no data
+                            //Delete whatever is in TNum
+                            tNum.setText("");
+                            //Set tNum to be . character
+                            tNum.setText(".");
+                            updateTrait(currentTrait.trait, "text", ".");
+
+
+
+                            //Read back the No Data
+                            String readBack = "No Data";
+                            tts.setLanguage(Locale.UK);
+                            if (!tts.isSpeaking() && ep.getBoolean("TraitVoice", false)) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+
+
+                            //Move right
+                            Handler handler2= new Handler();
+                            handler2.postDelayed(new Runnable() {
+                                public void run() {
+                                    traitRight.performClick();
+                                }
+                            }, 500);
+                        }
+                        else if(textInput.matches("\\b([a-zA-Z]{2})#[0-9]{3}\\b")) {
+                            //Was a phenotype measurement
+                            //Split input around # character
+                            String[] splitInput = textInput.split("#");
+                            //Reset TNum and set text to be the actual numbers
+                            tNum.setText("");
+                            tNum.setText(splitInput[1]);
+                            //Update trait
+                            updateTrait(currentTrait.trait, "text", splitInput[1]);
+
+
+                            //Read back the trait and the measurement
+                            String readBack = "Trait " + currentTrait.trait;
+                            //readBack += " Measurement " + tNum.getText();
+                            tts.setLanguage(Locale.UK);
+                            //tts.setLanguage(Locale.getDefault());
+
+                            if (!tts.isSpeaking() && ep.getBoolean("TraitVoice", false)) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+
+                            Handler handler = new Handler();
+                            handler.postDelayed(new Runnable() {
+                                public void run() {
+                                    traitRight.performClick();
+                                }
+                            }, 500);
+                        }
+                        else if(textInput.matches(".*([a-zA-Z]{1})([0-9]{2})([a-zA-Z]{3})([0-9]{1})_[0-9]{4}\\b")) {
+                            String plotId = textInput.substring(textInput.length()-12, textInput.length());
+                            textInput = textInput.substring(0,textInput.length()-12);
+
+                            //Its a plot id need to navigate to this plot,
+                            //But first remove the plot_id from the input
+                            tNum.setText("");
+                            tNum.setText(textInput);
+                            updateTrait(currentTrait.trait, "text",textInput);
+
+                            //Check to make sure the collected traits are correct
+                            boolean valid = true;
+                            String[] visibleTraits = dt.getVisibleTrait();
+
+                            for(int i = 0; i<visibleTraits.length - 1; i+=2) {
+                                if(newTraits.containsKey(visibleTraits[i]) && newTraits.containsKey(visibleTraits[i+1])) {
+                                    String firstString = newTraits.get(visibleTraits[i]).toString();
+                                    String secondString = newTraits.get(visibleTraits[i+1]).toString();
+                                    if(firstString.equals(".") || secondString.equals(".")) {
+                                        if(!firstString.equals(secondString)) {
+                                            valid = false;
+                                            break;
+                                        }
+                                    }
+                                    else if(!firstString.equals("") && !secondString.equals("")) {
+                                        int firstNumber = Integer.parseInt(firstString);
+                                        int secondNumber = Integer.parseInt(secondString);
+
+                                        if(firstNumber<secondNumber) {
+                                            //Bad measurements...
+                                            //Flag User and tell them to double check
+                                            valid = false;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if(valid) {
+                                //Check to see if the user has entered in a measurement for all traits
+                                boolean full = true;
+                                boolean empty = true;
+
+                                for(int i = 0; i < visibleTraits.length; i++) {
+                                    if(newTraits.containsKey(visibleTraits[i].toString())) {
+                                        if (newTraits.get(visibleTraits[i].toString()).equals("")) {
+                                            full = false;
+                                        } else {
+                                            empty = false;
+                                        }
+                                    }
+                                    else {
+                                        full = false;
+                                    }
+                                }
+
+                                //If there is nothing or all are filled, allow moving to a new plot
+                                if((full==true && empty==false) || (full==false && empty==true)) {
+                                    final int plotNum = Integer.parseInt(plotId.split("_")[1]);
+
+                                    Handler handler = new Handler();
+                                    handler.postDelayed(new Runnable() {
+                                        public void run() {
+                                            String readBack = "Moving to plot " + plotNum;
+                                            //tts.setLanguage(Locale.getDefault());
+                                            tts.setLanguage(Locale.UK);
+
+                                            if (!tts.isSpeaking()) {
+                                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                            }
+                                        }
+                                    }, 2000);
+
+
+
+                                    //Move to plot
+                                    String plot = dt.getPlotFromId(plotId);
+                                    String range = dt.getRangeFromId(plotId);
+                                    moveTo(rangeID, range, plot, true);
+                                }
+                                else {
+                                    //If 1 or more but not all are filled, pop up a message to the user
+                                    // asking if the want move make them hit enter to move
+                                    String readBack = "Plot is missing a measurement.  Please check traits ";
+                                    tts.setLanguage(Locale.UK);
+                                    //tts.setLanguage(Locale.getDefault());
+
+                                    if (!tts.isSpeaking()) {
+                                        tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    }
+                                }
+
+
+                            }
+                            else {
+                                makeToast("Incorrect Measurements");
+
+                                String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order";
+                                //tts.setLanguage(Locale.getDefault());
+                                tts.setLanguage(Locale.UK);
+
+                                if (!tts.isSpeaking()) {
+                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                }
+                            }
+
+                        }
+                        else {
+                            tNum.setText("");
+                            String readBack = "Error: cannot parse input.  Please scan again:";
+                            tts.setLanguage(Locale.UK);
+                            //tts.setLanguage(Locale.getDefault());
+                            if(!tts.isSpeaking()) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                        }
+                        //traitRight.performClick();
                     }
                     else {
                         rangeRight.performClick();
@@ -498,17 +690,13 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
                 if (en.toString().length() >= 0) {
                     if (newTraits != null & currentTrait != null)
-                        if(ep.getBoolean("ScannerMode",false)) {
-                            if(en.toString().matches("[a-zA-Z#]")) {
-                                //Ignore it
-                                tNum.setText("");
-                            }
-                            else {
-                                updateTrait(currentTrait.trait, "text",en.toString());
-                            }
+                        if(!ep.getBoolean("ScannerMode",false)) {
+                            updateTrait(currentTrait.trait, "text", en.toString());
                         }
                         else {
-                            updateTrait(currentTrait.trait, "text", en.toString());
+                            if(en.toString().equals("")) {
+                                updateTrait(currentTrait.trait, "text", en.toString());
+                            }
                         }
                 } else {
                     if (newTraits != null & currentTrait != null)
@@ -1242,6 +1430,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
                                         ;
                                     });
+
                                 } catch (Exception e) {
                                     ErrorLog("SoundError.txt", "" + e.getMessage());
                                 }
@@ -1298,168 +1487,250 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         // Go to next range
         rangeRight.setOnClickListener(new OnClickListener() {
             public void onClick(View arg0) {
+                boolean valid = true;
+                if (ep.getBoolean("ScannerMode", false)) {
+                    String[] visibleTraits = dt.getVisibleTrait();
 
-                if(ep.getBoolean("DisableEntryNavRight", false) && !newTraits.containsKey(currentTrait.trait)) {
+                    for (int i = 0; i < visibleTraits.length - 1; i += 2) {
+                        if (newTraits.containsKey(visibleTraits[i]) && newTraits.containsKey(visibleTraits[i + 1])) {
+                            String firstString = newTraits.get(visibleTraits[i]).toString();
+                            String secondString = newTraits.get(visibleTraits[i + 1]).toString();
+                            if(!firstString.equals("") && secondString.equals(".")) {
 
-                    try {
-                        int resID = getResources().getIdentifier("error", "raw", getPackageName());
-                        MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
-                        chimePlayer.start();
-
-                        chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                            public void onCompletion(MediaPlayer mp) {
-                                mp.release();
-                            };
-                        });
-                    } catch (Exception e) {
-                        ErrorLog("SoundError.txt", "" + e.getMessage());
-                    }
-
-                } else {
-                    if (rangeID != null && rangeID.length > 0) {
-                        //index.setEnabled(true);
-
-                        if(ep.getBoolean("MultiTraitJump",false)) {
-                            //If multiTraitJump is on
-                            //Loop through previous plots
-                            int pos = paging;
-                            if (pos == rangeID.length) {
-                                pos = 1;
-                                return;
                             }
-
-                            while (pos <= rangeID.length) {
-                                //Move to next plot
-                                pos += 1;
-
-                                //Check traits
-                                String[] traitNames = dt.getVisibleTrait();
-                                String[] traitType = dt.getFormat();
-                                int traitHolder = -1;
-                                for(int traitCounter = 0; traitCounter<traitNames.length; traitCounter++) {
-                                    //if a trait already exists, break out
-                                    if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
-                                            traitType[traitCounter])) {
-                                        paging = pos;
-                                        traitHolder = traitCounter;
-                                        break;
-                                    }
+                            else if (firstString.equals(".")) {
+                                if (!firstString.equals(secondString)) {
+                                    valid = false;
+                                    break;
                                 }
-                                if(traitHolder!=-1) {
-                                    int currentHolder = -1;
-                                    // Find index for currentTrait
-                                    for(int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
-                                        if(traitNames[currentTraitCounter].equals(currentTrait.trait)) {
-                                            currentHolder = currentTraitCounter;
-                                            break;
-                                        }
-                                    }
+                            }
+                            else if (!firstString.equals("") && !secondString.equals("")) {
+                                int firstNumber = Integer.parseInt(firstString);
+                                int secondNumber = Integer.parseInt(secondString);
 
-                                    if(currentHolder == traitHolder) {
-                                        //do nothing
-                                        break;
-                                    }
-                                    else if(currentHolder > traitHolder) {
-                                        //Loop left currentHolder - traitHolder times
-                                        for(int loopCounter = 0; loopCounter < (currentHolder-traitHolder); loopCounter++) {
-                                            traitLeft.performClick();
-                                        }
-                                        break;
-                                    }
-                                    else {
-                                        //Loop traits right traitHolder - currentHolder
-                                        for(int loopCounter = 0; loopCounter < (traitHolder-currentHolder); loopCounter++) {
-                                            traitRight.performClick();
-                                        }
-                                        break;
-                                    }
+                                if (firstNumber < secondNumber) {
+                                    //Bad measurements...
+                                    //Flag User and tell them to double check
+                                    valid = false;
+                                    break;
                                 }
                             }
                         }
-                        // If ignore existing data is enabled, then skip accordingly
-                        else if (ep.getBoolean("IgnoreExisting", false)) {
-                            int pos = paging;
+                    }
+                    if (!valid) {
+                        Handler handler = new Handler();
+                        handler.postDelayed(new Runnable() {
+                            public void run() {
+                                makeToast("Incorrect Measurements");
+                                String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order";
+                                //tts.setLanguage(Locale.getDefault());
+                                tts.setLanguage(Locale.UK);
 
-                            if (pos == rangeID.length) {
-                                pos = 1;
-                                return;
+                                if (!tts.isSpeaking()) {
+                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                }
                             }
+                        }, 2000);
+                    }
+                }
 
-                            while (pos <= rangeID.length) {
-                                pos += 1;
+                if (valid) {
+                    boolean movingRange = false;
 
-                                if (pos > rangeID.length) {
+                    if (ep.getBoolean("DisableEntryNavRight", false) && !newTraits.containsKey(currentTrait.trait)) {
+
+                        try {
+                            int resID = getResources().getIdentifier("error", "raw", getPackageName());
+                            MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                            chimePlayer.start();
+
+                            chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                public void onCompletion(MediaPlayer mp) {
+                                    mp.release();
+                                }
+
+
+                            });
+                        } catch (Exception e) {
+                            ErrorLog("SoundError.txt", "" + e.getMessage());
+                        }
+
+                    } else {
+                        if (rangeID != null && rangeID.length > 0) {
+                            //index.setEnabled(true);
+
+                            if (ep.getBoolean("MultiTraitJump", false)) {
+                                //If multiTraitJump is on
+                                //Loop through previous plots
+                                int pos = paging;
+                                if (pos == rangeID.length) {
                                     pos = 1;
                                     return;
                                 }
 
-                                if (!dt.getTraitExists(rangeID[pos - 1], currentTrait.trait,
-                                        currentTrait.format)) {
-                                    paging = pos;
-                                    break;
+                                while (pos <= rangeID.length) {
+                                    //Move to next plot
+                                    pos += 1;
+
+                                    //Check traits
+                                    String[] traitNames = dt.getVisibleTrait();
+                                    String[] traitType = dt.getFormat();
+                                    int traitHolder = -1;
+                                    for (int traitCounter = 0; traitCounter < traitNames.length; traitCounter++) {
+                                        //if a trait already exists, break out
+                                        if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
+                                                traitType[traitCounter])) {
+                                            paging = pos;
+                                            traitHolder = traitCounter;
+                                            break;
+                                        }
+                                    }
+                                    if (traitHolder != -1) {
+                                        int currentHolder = -1;
+                                        // Find index for currentTrait
+                                        for (int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
+                                            if (traitNames[currentTraitCounter].equals(currentTrait.trait)) {
+                                                currentHolder = currentTraitCounter;
+                                                break;
+                                            }
+                                        }
+
+                                        if (currentHolder == traitHolder) {
+                                            //do nothing
+                                            break;
+                                        } else if (currentHolder > traitHolder) {
+                                            //Loop left currentHolder - traitHolder times
+                                            for (int loopCounter = 0; loopCounter < (currentHolder - traitHolder); loopCounter++) {
+                                                traitLeft.performClick();
+                                            }
+                                            break;
+                                        } else {
+                                            //Loop traits right traitHolder - currentHolder
+                                            for (int loopCounter = 0; loopCounter < (traitHolder - currentHolder); loopCounter++) {
+                                                traitRight.performClick();
+                                            }
+                                            break;
+                                        }
+                                    }
                                 }
                             }
-                        } else {
-                            paging += 1;
+                            // If ignore existing data is enabled, then skip accordingly
+                            else if (ep.getBoolean("IgnoreExisting", false)) {
+                                int pos = paging;
 
-                            if (paging > rangeID.length)
-                                paging = 1;
-                        }
-
-                        // Refresh onscreen controls
-                        cRange = dt.getRange(rangeID[paging - 1]);
-
-                        Editor ed = ep.edit();
-                        ed.putString("lastplot", cRange.plot_id);
-                        ed.apply();
-
-                        displayRange(cRange);
-                        if (ep.getBoolean("RangeSound", false)) {
-                            if (!cRange.range.equals(lastRange) && !lastRange.equals("")) {
-                                lastRange = cRange.range;
-
-                                try {
-                                    int resID = getResources().getIdentifier("plonk", "raw", getPackageName());
-                                    MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
-                                    chimePlayer.start();
-
-                                    chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                                        public void onCompletion(MediaPlayer mp) {
-                                            mp.release();
-                                        }
-                                    });
-                                } catch (Exception e) {
-                                    ErrorLog("SoundError.txt", "" + e.getMessage());
+                                if (pos == rangeID.length) {
+                                    pos = 1;
+                                    return;
                                 }
-                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-                                long[] pattern = {200l,200l,200l,200l,200l};
-                                v.vibrate(pattern, -1);
+
+                                while (pos <= rangeID.length) {
+                                    pos += 1;
+
+                                    if (pos > rangeID.length) {
+                                        pos = 1;
+                                        return;
+                                    }
+
+                                    if (!dt.getTraitExists(rangeID[pos - 1], currentTrait.trait,
+                                            currentTrait.format)) {
+                                        paging = pos;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                paging += 1;
+
+                                if (paging > rangeID.length)
+                                    paging = 1;
+                            }
+
+                            // Refresh onscreen controls
+                            cRange = dt.getRange(rangeID[paging - 1]);
+
+                            Editor ed = ep.edit();
+                            ed.putString("lastplot", cRange.plot_id);
+                            ed.apply();
+
+                            displayRange(cRange);
+
+                            if (ep.getBoolean("RangeSound", false)) {
+                                if (!cRange.range.equals(lastRange) && !lastRange.equals("")) {
+                                    lastRange = cRange.range;
+                                    movingRange = true;
+                                    try {
+                                        int resID = getResources().getIdentifier("plonk", "raw", getPackageName());
+                                        MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                                        chimePlayer.start();
+
+                                        chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                            public void onCompletion(MediaPlayer mp) {
+                                                mp.release();
+                                            }
+                                        });
+                                    } catch (Exception e) {
+                                        ErrorLog("SoundError.txt", "" + e.getMessage());
+                                    }
+                                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                    long[] pattern = {200l, 200l, 200l, 200l, 200l};
+                                    v.vibrate(pattern, -1);
+                                } else {
+
+                                    try {
+                                        int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
+                                        MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
+                                        chimePlayer.start();
+
+                                        chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                            public void onCompletion(MediaPlayer mp) {
+                                                mp.release();
+                                            }
+
+
+                                        });
+                                    } catch (Exception e) {
+                                        ErrorLog("SoundError.txt", "" + e.getMessage());
+                                    }
+
+                                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                                    v.vibrate(200l);
+                                }
+                            }
+                            newTraits = (HashMap) dt.getUserDetail(cRange.plot_id)
+                                    .clone();
+
+                            initWidgets(true);
+                        }
+                    }
+
+                    //String[] splitString = cRange.plot_id.split("_");
+                    final boolean movingRangeFinal = movingRange;
+                    Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        public void run() {
+                            String[] splitString = cRange.plot_id.split("_");
+                            String readBack = "";
+                            if(movingRangeFinal) {
+                                readBack += "Moving range. Going to plot";
                             }
                             else {
-                                try {
-                                    int resID = getResources().getIdentifier("plonkshort", "raw", getPackageName());
-                                    MediaPlayer chimePlayer = MediaPlayer.create(MainActivity.this, resID);
-                                    chimePlayer.start();
+                              readBack += "Moving to plot ";
+                            }
+                            //String readBack = "Moving to plot ";
+                            if (splitString.length == 1) {
+                                readBack += splitString[0];
+                            } else {
+                                readBack += Integer.parseInt(splitString[1]);
+                            }
+                            //String readBack = "Moving to plot " + Integer.parseInt(cRange.plot_id.split("_")[1]);
 
-                                    chimePlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-                                        public void onCompletion(MediaPlayer mp) {
-                                            mp.release();
-                                        }
+                            //tts.setLanguage(Locale.getDefault());
+                            tts.setLanguage(Locale.UK);
 
-                                        ;
-                                    });
-                                } catch (Exception e) {
-                                    ErrorLog("SoundError.txt", "" + e.getMessage());
-                                }
-                                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-                                v.vibrate(200l);
+                            if (!tts.isSpeaking()) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
                             }
                         }
-                        newTraits = (HashMap) dt.getUserDetail(cRange.plot_id)
-                                .clone();
-
-                        initWidgets(true);
-                    }
+                    },2000);
                 }
             }
         });
@@ -3270,6 +3541,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         // Always close the database connection when the app ends
         dt.close();
 
+        tts.shutdown();
+
         super.onDestroy();
     }
 
@@ -4520,7 +4793,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
             ModeChangeFragment fragment = (ModeChangeFragment)getSupportFragmentManager().findFragmentById(R.id.modeFragment);
 
             //Set SeekBarProgress to 100
-            fragment.setProgress(100);
+            fragment.setProgress(99);
             //Set "MultiTraitJump" and "IgnoreExisting" to false
             //They should be already, but just to be sure
             Editor edit = ep.edit();
@@ -4533,7 +4806,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
             ModeChangeFragment fragment = (ModeChangeFragment)getSupportFragmentManager().findFragmentById(R.id.modeFragment);
 
             //Set SeekBarProgress to 0
-            fragment.setProgress(0);
+            fragment.setProgress(1);
             //Set "MultiTraitJump" and "IgnoreExisting" to true
             //They should be already, but just to be sure
             Editor edit = ep.edit();

@@ -48,11 +48,11 @@ public class ModeChangeFragment extends Fragment {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if(currentProgress>50) {
-                    modeSeekBar.setProgress(100);
+                    modeSeekBar.setProgress(99);
                     modeListener.modeSwap(100);
                 }
                 else {
-                    modeSeekBar.setProgress(0);
+                    modeSeekBar.setProgress(1);
                     modeListener.modeSwap(0);
                 }
             }

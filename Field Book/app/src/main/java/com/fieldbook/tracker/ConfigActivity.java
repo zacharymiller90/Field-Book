@@ -223,10 +223,10 @@ public class ConfigActivity extends Activity {
         advancedDialog.setCanceledOnTouchOutside(true);
 
         CheckBox tips = (CheckBox) advancedDialog.findViewById(R.id.tips);
-        CheckBox cycle = (CheckBox) advancedDialog.findViewById(R.id.cycle);
-        CheckBox ignoreEntries = (CheckBox) advancedDialog.findViewById(R.id.ignoreExisting);
+        final CheckBox cycle = (CheckBox) advancedDialog.findViewById(R.id.cycle);
+        final CheckBox ignoreEntries = (CheckBox) advancedDialog.findViewById(R.id.ignoreExisting);
         CheckBox useDay = (CheckBox) advancedDialog.findViewById(R.id.useDay);
-        CheckBox rangeSound = (CheckBox) advancedDialog.findViewById(R.id.rangeSound);
+        final CheckBox rangeSound = (CheckBox) advancedDialog.findViewById(R.id.rangeSound);
         CheckBox jumpToPlot = (CheckBox) advancedDialog.findViewById(R.id.jumpToPlot);
         CheckBox barcodeScan = (CheckBox) advancedDialog.findViewById(R.id.barcodeScan);
         CheckBox nextEmptyPlot = (CheckBox) advancedDialog.findViewById(R.id.nextEmptyPlot);
@@ -236,7 +236,8 @@ public class ConfigActivity extends Activity {
         CheckBox disableEntryNavRight = (CheckBox) advancedDialog.findViewById(R.id.disableEntryNavRight);
         CheckBox dataGrid = (CheckBox) advancedDialog.findViewById(R.id.dataGrid);
         CheckBox scannerMode =(CheckBox) advancedDialog.findViewById(R.id.scannerMode);
-        CheckBox multiTraitJump = (CheckBox) advancedDialog.findViewById(R.id.multiTraitJump);
+        final CheckBox voiceReadback = (CheckBox) advancedDialog.findViewById(R.id.voiceReadback);
+        final CheckBox multiTraitJump = (CheckBox) advancedDialog.findViewById(R.id.multiTraitJump);
         CheckBox modeSwitch = (CheckBox) advancedDialog.findViewById(R.id.modeSwitch);
 
         Button advCloseBtn = (Button) advancedDialog.findViewById(R.id.closeBtn);
@@ -263,6 +264,7 @@ public class ConfigActivity extends Activity {
         disableEntryNavRight.setChecked(ep.getBoolean("DisableEntryNavRight", false));
         dataGrid.setChecked(ep.getBoolean("DataGrid", false));
         scannerMode.setChecked(ep.getBoolean("ScannerMode",false));
+        voiceReadback.setChecked(ep.getBoolean("TraitVoice",false));
         multiTraitJump.setChecked(ep.getBoolean("MultiTraitJump",false));
         modeSwitch.setChecked(ep.getBoolean("ModeSwitch",false));
 
@@ -410,6 +412,22 @@ public class ConfigActivity extends Activity {
                                          boolean checked) {
                 Editor e = ep.edit();
                 e.putBoolean("ScannerMode", checked);
+                cycle.setChecked(checked);
+                rangeSound.setChecked(checked);
+                voiceReadback.setChecked(checked);
+                e.putBoolean("CycleTraits", checked);
+                e.putBoolean("RangeSound", checked);
+                e.putBoolean("TraitVoice", checked);
+                e.apply();
+                MainActivity.reloadData = true;
+            }
+        });
+        voiceReadback.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                Editor e = ep.edit();
+                e.putBoolean("TraitVoice", checked);
                 e.apply();
                 MainActivity.reloadData = true;
             }
@@ -432,9 +450,11 @@ public class ConfigActivity extends Activity {
                                          boolean checked) {
                 Editor e = ep.edit();
                 e.putBoolean("ModeSwitch", checked);
-                e.putBoolean("MultiTraitJump",checked);
-                e.putBoolean("IgnoreExisting",checked);
+                //e.putBoolean("MultiTraitJump",checked);
+                //e.putBoolean("IgnoreExisting",checked);
                 e.apply();
+                multiTraitJump.setChecked(checked);
+                ignoreEntries.setChecked(checked);
                 MainActivity.reloadData = true;
             }
         });
