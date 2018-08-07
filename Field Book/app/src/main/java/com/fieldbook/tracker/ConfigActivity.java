@@ -239,6 +239,8 @@ public class ConfigActivity extends Activity {
         final CheckBox voiceReadback = (CheckBox) advancedDialog.findViewById(R.id.voiceReadback);
         final CheckBox multiTraitJump = (CheckBox) advancedDialog.findViewById(R.id.multiTraitJump);
         CheckBox modeSwitch = (CheckBox) advancedDialog.findViewById(R.id.modeSwitch);
+        CheckBox autoExportDB = (CheckBox) advancedDialog.findViewById(R.id.autoExportDB);
+        CheckBox turnOnPlusOne = (CheckBox) advancedDialog.findViewById(R.id.turnOnPlusOne);
 
         Button advCloseBtn = (Button) advancedDialog.findViewById(R.id.closeBtn);
 
@@ -267,6 +269,8 @@ public class ConfigActivity extends Activity {
         voiceReadback.setChecked(ep.getBoolean("TraitVoice",false));
         multiTraitJump.setChecked(ep.getBoolean("MultiTraitJump",false));
         modeSwitch.setChecked(ep.getBoolean("ModeSwitch",false));
+        autoExportDB.setChecked(ep.getBoolean("AutoExportDB",false));
+        turnOnPlusOne.setChecked(ep.getBoolean("TurnOnPlusOne",false));
 
         tips.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 
@@ -455,6 +459,29 @@ public class ConfigActivity extends Activity {
                 e.apply();
                 multiTraitJump.setChecked(checked);
                 ignoreEntries.setChecked(checked);
+                MainActivity.reloadData = true;
+            }
+        });
+
+        autoExportDB.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                Editor e = ep.edit();
+                e.putBoolean("AutoExportDB", checked);
+                e.apply();
+                MainActivity.reloadData = true;
+            }
+        });
+
+        turnOnPlusOne.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+
+            public void onCheckedChanged(CompoundButton arg0,
+                                         boolean checked) {
+                System.out.println(checked);
+                Editor e = ep.edit();
+                e.putBoolean("TurnOnPlusOne", checked);
+                e.apply();
                 MainActivity.reloadData = true;
             }
         });
@@ -1232,6 +1259,15 @@ public class ConfigActivity extends Activity {
         spinner.setSelection(spinnerPosition);
     }
 
+    private void setUniqueSpinner(Spinner spinner, String[] data) {
+        ArrayAdapter<String> itemsAdapter = new ArrayAdapter<String>(this, R.layout.spinnerlayout, data);
+        spinner.setAdapter(itemsAdapter);
+
+        int spinnerPosition = itemsAdapter.getPosition(ep.getString("ImportUniqueName", "plot_id"));
+        spinner.setSelection(spinnerPosition);
+        spinner.setEnabled(false);
+    }
+
     public void makeToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
@@ -1847,15 +1883,29 @@ public class ConfigActivity extends Activity {
             }
         });
 
-        unique = (Spinner) importFieldDialog.findViewById(R.id.uniqueSpin);
-        primary = (Spinner) importFieldDialog.findViewById(R.id.primarySpin);
-        secondary = (Spinner) importFieldDialog.findViewById(R.id.secondarySpin);
+        //Loop through and make sure we have plot_id in file
+        boolean hasPlotID = false;
+        for(String colName : columns) {
+            if(colName.equals("plot_id")) {
+                hasPlotID = true;
+            }
+        }
+        if(!hasPlotID) {
+            makeToast("File Is Missing plot_id.");
+            ErrorLog("CSVError.txt", "Loading field error: Missing Plot ID column.");
+        }
+        else {
+            unique = (Spinner) importFieldDialog.findViewById(R.id.uniqueSpin);
+            primary = (Spinner) importFieldDialog.findViewById(R.id.primarySpin);
+            secondary = (Spinner) importFieldDialog.findViewById(R.id.secondarySpin);
 
-        setSpinner(unique, columns, "ImportUniqueName");
-        setSpinner(primary, columns, "ImportFirstName");
-        setSpinner(secondary, columns, "ImportSecondName");
+            // setSpinner(unique, columns, "ImportUniqueName");
+            setUniqueSpinner(unique, columns);
+            setSpinner(primary, columns, "ImportFirstName");
+            setSpinner(secondary, columns, "ImportSecondName");
 
-        importFieldDialog.show();
+            importFieldDialog.show();
+        }
     }
 
     // Creates a new thread to do importing
@@ -1902,8 +1952,17 @@ public class ConfigActivity extends Activity {
 
                 columns = cr.readNext();
 
+                boolean hasPlotID = false;
                 for (int i = 0; i < columns.length; i++) {
                     columns[i] = columns[i].replaceAll(" ", "_");
+                    if(columns[i].equals("plot_id")) {
+                        hasPlotID = true;
+                    }
+                }
+
+                if(!hasPlotID) {
+                    makeToast("File Is Missing plot_id.");
+                    throw new Exception("Missing plot_id");
                 }
 
                 MainActivity.dt.dropRange();
@@ -2044,8 +2103,17 @@ public class ConfigActivity extends Activity {
 
                 columns = new String[wb.getSheet(0).getColumns()];
 
+                boolean hasPlotID = false;
                 for (int s = 0; s < wb.getSheet(0).getColumns(); s++) {
                     columns[s] = wb.getSheet(0).getCell(s, 0).getContents();
+                    if(columns[s].equals("plot_id")) {
+                        hasPlotID = true;
+                    }
+                }
+
+                if(!hasPlotID) {
+                    makeToast("File Is Missing plot_id.");
+                    throw new Exception("Missing plot_id");
                 }
 
                 MainActivity.dt.dropRange();

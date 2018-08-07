@@ -108,6 +108,9 @@
     <string name="jumptoplotid">Enables button that moves to specific unique identifier</string>
     <string name="multiTraitJump">Enables skipping plots which have data in all traits</string>
     <string name="modeSwitchOption">Enable Mode Slider</string>
+    <string name="autoExportDB">Enable Auto Saving of Database</string>
+    <string name="turnOnPlusOne">Allow for Dating 1 day ahead</string>
+
 
     <!-- Advanced settings titles and messages -->
     <string name="nomatches">No matching value</string>

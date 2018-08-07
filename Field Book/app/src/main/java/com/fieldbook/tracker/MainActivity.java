@@ -11,6 +11,7 @@ import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -77,10 +78,6 @@ import com.fieldbook.tracker.Speech.TextToSpeechFactory;
 import com.fieldbook.tracker.Trait.TraitObject;
 import com.fieldbook.tracker.Tutorial.TutorialMainActivity;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.select.Elements;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -95,6 +92,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -271,6 +269,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 .getDisplayMetrics());
 
 
+
         loadScreen();
         checkNewVersion();
 
@@ -303,6 +302,9 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         tts = new TextToSpeechFactory(this).getTTS();
         this.getResources().getConfiguration().locale.getDisplayName();
+
+        ed.putInt("BackupDB",10);
+        ed.apply();
     }
 
 
@@ -465,7 +467,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                 }
                             }, 500);
                         }
-                        else if(textInput.matches("\\b([a-zA-Z]{2})#[0-9]{3}\\b")) {
+                        else if(textInput.matches("\\b([a-zA-Z]{2})#[0-9]{1,4}\\b")) {
                             //Was a phenotype measurement
                             //Split input around # character
                             String[] splitInput = textInput.split("#");
@@ -477,7 +479,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
 
                             //Read back the trait and the measurement
-                            String readBack = "Trait " + currentTrait.trait;
+                            //String readBack = "Trait " + currentTrait.trait;
+                            String readBack = "" + currentTrait.trait;
                             //readBack += " Measurement " + tNum.getText();
                             tts.setLanguage(Locale.UK);
                             //tts.setLanguage(Locale.getDefault());
@@ -505,6 +508,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
                             //Check to make sure the collected traits are correct
                             boolean valid = true;
+                            boolean missingVal = false;
+                            ArrayList<Boolean> validList = new ArrayList<Boolean>();
                             String[] visibleTraits = dt.getVisibleTrait();
 
                             for(int i = 0; i<visibleTraits.length - 1; i+=2) {
@@ -514,7 +519,11 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                     if(firstString.equals(".") || secondString.equals(".")) {
                                         if(!firstString.equals(secondString)) {
                                             valid = false;
-                                            break;
+                                            validList.add(false);
+                                            //break;
+                                        }
+                                        else {
+                                            validList.add(true);
                                         }
                                     }
                                     else if(!firstString.equals("") && !secondString.equals("")) {
@@ -525,8 +534,18 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                             //Bad measurements...
                                             //Flag User and tell them to double check
                                             valid = false;
-                                            break;
+                                            validList.add(false);
+
                                         }
+                                        else {
+                                            validList.add(true);
+                                        }
+                                    }
+                                    else if(firstString.equals("")||secondString.equals("")) {
+                                        //if there is an empty spot in either first or second
+                                        valid = false;
+                                        missingVal = true;
+                                        validList.add(false);
                                     }
                                 }
                             }
@@ -557,11 +576,16 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                     handler.postDelayed(new Runnable() {
                                         public void run() {
                                             String readBack = "Moving to plot " + plotNum;
+
+                                            if(plotNum%10==0) {
+                                                readBack += ". Please check the plot tag.";
+                                            }
                                             //tts.setLanguage(Locale.getDefault());
                                             tts.setLanguage(Locale.UK);
-
-                                            if (!tts.isSpeaking()) {
-                                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                            if(ep.getBoolean("ScannerMode",false)) {
+                                                if (!tts.isSpeaking()) {
+                                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                                }
                                             }
                                         }
                                     }, 2000);
@@ -589,13 +613,34 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                             }
                             else {
                                 makeToast("Incorrect Measurements");
+                                if(missingVal) {
+                                    String readBack = "Error, Cannot Move to plot.  Measurement is missing, Please check traits.";
 
-                                String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order";
-                                //tts.setLanguage(Locale.getDefault());
-                                tts.setLanguage(Locale.UK);
+                                    //tts.setLanguage(Locale.getDefault());
+                                    tts.setLanguage(Locale.UK);
 
-                                if (!tts.isSpeaking()) {
-                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    if (!tts.isSpeaking()) {
+                                        tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    }
+                                }
+                                else {
+                                    boolean allFalse = true;
+                                    for (int i = 0; i < validList.size(); i++) {
+                                        if (validList.get(i)) {
+                                            allFalse = false;
+                                        }
+                                    }
+                                    System.out.println("allFalse" + allFalse);
+                                    String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order.";
+                                    if (allFalse) {
+                                        readBack += " Perhaps the stick is flipped.";
+                                    }
+                                    //tts.setLanguage(Locale.getDefault());
+                                    tts.setLanguage(Locale.UK);
+
+                                    if (!tts.isSpeaking()) {
+                                        tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    }
                                 }
                             }
 
@@ -761,7 +806,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
 
         Button addDayBtn = (Button) traitDate.findViewById(R.id.addDateBtn);
         Button minusDayBtn = (Button) traitDate.findViewById(R.id.minusDateBtn);
-        Button saveDayBtn = (Button) traitDate.findViewById(R.id.enterBtn);
+        final Button saveDayBtn = (Button) traitDate.findViewById(R.id.enterBtn);
         Button clearDate = (Button) traitDate.findViewById(R.id.clearDateBtn);
         Button noDayBtn = (Button) traitDate.findViewById(R.id.noDateBtn);
 
@@ -936,7 +981,12 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
             }
         });
 
-
+        if(!ep.getBoolean("TurnOnPlusOne",false)) {
+            addDayBtn.setVisibility(View.GONE);
+        }
+        else {
+            addDayBtn.setVisibility(View.VISIBLE);
+        }
         // Add day
         addDayBtn.setOnClickListener(new OnClickListener() {
             public void onClick(View arg0) {
@@ -1045,6 +1095,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                     month.setTextColor(Color.BLACK);
                     day.setTextColor(Color.BLACK);
                 }
+                saveDayBtn.performClick();
             }
         });
 
@@ -1487,24 +1538,36 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         // Go to next range
         rangeRight.setOnClickListener(new OnClickListener() {
             public void onClick(View arg0) {
+
                 boolean valid = true;
+                //System.out.println("ScannerMode: "+ep.getBoolean("ScannerMode",false));
                 if (ep.getBoolean("ScannerMode", false)) {
                     String[] visibleTraits = dt.getVisibleTrait();
 
+                    //Check for any empty plots
+
+                    //Check for any Plots incorrectly ordered
+
+                    ArrayList<Boolean> validList = new ArrayList<Boolean>();
+                    boolean missingVal = false;
+                    int missingIndex = -1;
                     for (int i = 0; i < visibleTraits.length - 1; i += 2) {
                         if (newTraits.containsKey(visibleTraits[i]) && newTraits.containsKey(visibleTraits[i + 1])) {
                             String firstString = newTraits.get(visibleTraits[i]).toString();
                             String secondString = newTraits.get(visibleTraits[i + 1]).toString();
-                            if(!firstString.equals("") && secondString.equals(".")) {
+                            //System.out.println("FirstString: "+firstString);
+                            //System.out.println("SecondString: "+secondString);
+                            if (!firstString.equals("") && secondString.equals(".")) {
 
-                            }
-                            else if (firstString.equals(".")) {
+                            } else if (firstString.equals(".")) {
                                 if (!firstString.equals(secondString)) {
                                     valid = false;
-                                    break;
+                                    validList.add(false);
+                                    //break;
+                                } else {
+                                    validList.add(true);
                                 }
-                            }
-                            else if (!firstString.equals("") && !secondString.equals("")) {
+                            } else if (!firstString.equals("") && !secondString.equals("")) {
                                 int firstNumber = Integer.parseInt(firstString);
                                 int secondNumber = Integer.parseInt(secondString);
 
@@ -1512,28 +1575,106 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                     //Bad measurements...
                                     //Flag User and tell them to double check
                                     valid = false;
-                                    break;
+                                    validList.add(false);
+                                    //break;
+                                } else {
+                                    validList.add(true);
                                 }
+                            } else if (firstString.equals("") || secondString.equals("")) {
+                                //System.out.println("Hit missing Spot");
+                                if(firstString.equals("")) {
+                                    missingIndex = i;
+                                }
+                                else {
+                                    missingIndex = i+1;
+                                }
+                                valid = false;
+                                validList.add(false);
+                                missingVal = true;
                             }
+                        }
+                        else {
+                            valid = false;
+                            validList.add(false);
+                            missingVal = true;
                         }
                     }
                     if (!valid) {
+                        boolean allFalse = true;
+                        for (int i = 0; i < validList.size(); i++) {
+                            if (validList.get(i)) {
+                                allFalse = false;
+                            }
+                        }
+                        final boolean allFalseFinal = allFalse;
+                        final boolean missingValFinal = missingVal;
+
+                        if (missingVal) {
+                            //Move to the beginning
+
+                            /*
+                            String currentTraitName = currentTrait.trait;
+                            int currentIDHolder = 0;
+                            for (int i = 0; i < visibleTraits.length; i++) {
+                                if (visibleTraits[i].equals(currentTrait.trait)) {
+                                    currentIDHolder = i;
+                                }
+                            }
+                            for (int i = currentIDHolder; i > 0; i--) {
+                                traitLeft.performClick();
+                            }
+                            for (int i = 0; i < visibleTraits.length; i++) {
+                                //tNum.setText("");
+                                //updateTrait(visibleTraits[i], "text", "");
+                                //if(!visibleTraits[i].equals(currentTraitName)) {
+                                if(i!=missingIndex) {
+                                    traitRight.performClick();
+                                }
+                                else {
+                                    break;
+                                }
+                            }
+                            */
+                            //tNum.setText("");
+                            //updateTrait(visibleTraits[visibleTraits.length - 1], "text", "");
+                            //for (int i = visibleTraits.length - 1; i > 0; i--) {
+                            //    traitLeft.performClick();
+                            //}
+                            //visibleTraits[0]
+                            //
+                        }
+
                         Handler handler = new Handler();
                         handler.postDelayed(new Runnable() {
                             public void run() {
                                 makeToast("Incorrect Measurements");
-                                String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order";
-                                //tts.setLanguage(Locale.getDefault());
-                                tts.setLanguage(Locale.UK);
+                                if (missingValFinal) {
+                                    String readBack = "Error, Cannot Move to plot.  Missing a measurement.";
 
-                                if (!tts.isSpeaking()) {
-                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    //tts.setLanguage(Locale.getDefault());
+                                    tts.setLanguage(Locale.UK);
+
+                                    if (!tts.isSpeaking()) {
+                                        tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    }
+                                } else {
+
+
+                                    String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order.";
+                                    if (allFalseFinal) {
+                                        readBack += " Perhaps the stick is flipped.";
+                                    }
+                                    //tts.setLanguage(Locale.getDefault());
+                                    tts.setLanguage(Locale.UK);
+
+                                    if (!tts.isSpeaking()) {
+                                        tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                    }
                                 }
                             }
                         }, 2000);
                     }
                 }
-
                 if (valid) {
                     boolean movingRange = false;
 
@@ -1559,57 +1700,89 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                         if (rangeID != null && rangeID.length > 0) {
                             //index.setEnabled(true);
 
+                            if(ep.getBoolean("AutoExportDB",false)) {
+                                if(paging%ep.getInt("BackupDB",10)==0 || paging == rangeID.length) {
+                                    // makeToast("Backing Up Database");
+                                    backupDB();
+                                }
+                            }
+
                             if (ep.getBoolean("MultiTraitJump", false)) {
                                 //If multiTraitJump is on
                                 //Loop through previous plots
                                 int pos = paging;
                                 if (pos == rangeID.length) {
-                                    pos = 1;
-                                    return;
+                                    paging = 1;
+                                    backupDB();
+                                    //return;
                                 }
+                                else {
+                                    int positionCounter = 0;
+                                    while (pos <= rangeID.length) {
+                                        if (pos == rangeID.length) {
+                                            paging = 1;
+                                            //backupFiles
+                                            backupDB();
 
-                                while (pos <= rangeID.length) {
-                                    //Move to next plot
-                                    pos += 1;
-
-                                    //Check traits
-                                    String[] traitNames = dt.getVisibleTrait();
-                                    String[] traitType = dt.getFormat();
-                                    int traitHolder = -1;
-                                    for (int traitCounter = 0; traitCounter < traitNames.length; traitCounter++) {
-                                        //if a trait already exists, break out
-                                        if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
-                                                traitType[traitCounter])) {
-                                            paging = pos;
-                                            traitHolder = traitCounter;
+                                            //return;
                                             break;
                                         }
-                                    }
-                                    if (traitHolder != -1) {
-                                        int currentHolder = -1;
-                                        // Find index for currentTrait
-                                        for (int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
-                                            if (traitNames[currentTraitCounter].equals(currentTrait.trait)) {
-                                                currentHolder = currentTraitCounter;
+                                        //Move to next plot
+                                        pos += 1;
+                                        positionCounter++;
+
+                                        //Check traits
+                                        String[] traitNames = dt.getVisibleTrait();
+                                        String[] traitType = dt.getFormat();
+                                        int traitHolder = -1;
+                                        for (int traitCounter = 0; traitCounter < traitNames.length; traitCounter++) {
+                                            //if a trait already exists, break out
+                                            //Array out of bounds here due to last plot having complete scoring
+                                            if (!dt.getTraitExists(rangeID[pos - 1], traitNames[traitCounter],
+                                                    traitType[traitCounter])) {
+                                                paging = pos;
+                                                traitHolder = traitCounter;
+                                                if(positionCounter>ep.getInt("BackupDB",10)) {
+                                                    backupDB();
+                                                }
                                                 break;
                                             }
                                         }
+                                        if (traitHolder != -1) {
+                                            int currentHolder = -1;
+                                            // Find index for currentTrait
+                                            for (int currentTraitCounter = 0; currentTraitCounter < traitNames.length; currentTraitCounter++) {
+                                                if (traitNames[currentTraitCounter].equals(currentTrait.trait)) {
+                                                    currentHolder = currentTraitCounter;
+                                                    if(positionCounter>ep.getInt("BackupDB",10)) {
+                                                        backupDB();
+                                                    }
+                                                    break;
+                                                }
+                                            }
 
-                                        if (currentHolder == traitHolder) {
-                                            //do nothing
-                                            break;
-                                        } else if (currentHolder > traitHolder) {
-                                            //Loop left currentHolder - traitHolder times
-                                            for (int loopCounter = 0; loopCounter < (currentHolder - traitHolder); loopCounter++) {
-                                                traitLeft.performClick();
+                                            if (currentHolder == traitHolder) {
+                                                //do nothing
+                                                break;
+                                            } else if (currentHolder > traitHolder) {
+                                                //Loop left currentHolder - traitHolder times
+                                                for (int loopCounter = 0; loopCounter < (currentHolder - traitHolder); loopCounter++) {
+                                                    traitLeft.performClick();
+                                                }
+                                                if(positionCounter>ep.getInt("BackupDB",10)) {
+                                                    backupDB();
+                                                }
+                                                break;
+                                            } else {
+                                                //Loop traits right traitHolder - currentHolder
+                                                for (int loopCounter = 0; loopCounter < (traitHolder - currentHolder); loopCounter++) {
+                                                    traitRight.performClick();
+                                                }
+                                                if(positionCounter>ep.getInt("BackupDB",10)) {
+                                                    backupDB();
+                                                }
+                                                break;
                                             }
-                                            break;
-                                        } else {
-                                            //Loop traits right traitHolder - currentHolder
-                                            for (int loopCounter = 0; loopCounter < (traitHolder - currentHolder); loopCounter++) {
-                                                traitRight.performClick();
-                                            }
-                                            break;
                                         }
                                     }
                                 }
@@ -1619,22 +1792,26 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                 int pos = paging;
 
                                 if (pos == rangeID.length) {
-                                    pos = 1;
-                                    return;
+                                    paging = 1;
+                                    //return;
                                 }
+                                else {
+                                    while (pos <= rangeID.length) {
+                                        pos += 1;
 
-                                while (pos <= rangeID.length) {
-                                    pos += 1;
+                                        if (pos > rangeID.length) {
+                                            //Might break this
+                                            //pos = 1;
 
-                                    if (pos > rangeID.length) {
-                                        pos = 1;
-                                        return;
-                                    }
+                                            paging = pos;
+                                            //return;
+                                        }
 
-                                    if (!dt.getTraitExists(rangeID[pos - 1], currentTrait.trait,
-                                            currentTrait.format)) {
-                                        paging = pos;
-                                        break;
+                                        if (!dt.getTraitExists(rangeID[pos - 1], currentTrait.trait,
+                                                currentTrait.format)) {
+                                            paging = pos;
+                                            break;
+                                        }
                                     }
                                 }
                             } else {
@@ -1720,14 +1897,20 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                                 readBack += splitString[0];
                             } else {
                                 readBack += Integer.parseInt(splitString[1]);
+                                if(Integer.parseInt(splitString[1])%10 ==0) {
+                                    readBack += ". Please check the plot tag.";
+                                }
                             }
                             //String readBack = "Moving to plot " + Integer.parseInt(cRange.plot_id.split("_")[1]);
+
 
                             //tts.setLanguage(Locale.getDefault());
                             tts.setLanguage(Locale.UK);
 
-                            if (!tts.isSpeaking()) {
-                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            if(ep.getBoolean("ScannerMode",false)) {
+                                if (!tts.isSpeaking()) {
+                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                }
                             }
                         }
                     },2000);
@@ -1830,16 +2013,120 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                     ErrorLog("MainScreenError.txt", "" + e.getMessage());
                 }
 
-                int pos = traitType.getSelectedItemPosition() + 1;
+                if (tNum.getText().toString().equals("") && ep.getBoolean("ScannerMode", false)) {
+                    makeToast("Missing a Measurement");
+                    Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        public void run() {
 
-                if (pos > traitType.getCount() - 1) {
-                    pos = 0;
 
-                    if (ep.getBoolean("CycleTraits", false))
-                        rangeRight.performClick();
+                            String readBack = "Error, Cannot change Traits.  Missing a measurement.";
+
+                            //tts.setLanguage(Locale.getDefault());
+                            tts.setLanguage(Locale.UK);
+
+                            if (!tts.isSpeaking()) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                        }
+                    }, 2000);
                 }
+                else {
+                    int pos = traitType.getSelectedItemPosition() + 1;
 
-                traitType.setSelection(pos);
+                    if (pos > traitType.getCount() - 1) {
+                        pos = 0;
+
+                        if (ep.getBoolean("CycleTraits", false)) {
+                            boolean valid = true;
+                            if (ep.getBoolean("ScannerMode", false)) {
+                                String[] visibleTraits = dt.getVisibleTrait();
+
+                                ArrayList<Boolean> validList = new ArrayList<Boolean>();
+                                boolean missingVal = false;
+                                for (int i = 0; i < visibleTraits.length - 1; i += 2) {
+                                    if (newTraits.containsKey(visibleTraits[i]) && newTraits.containsKey(visibleTraits[i + 1])) {
+                                        String firstString = newTraits.get(visibleTraits[i]).toString();
+                                        String secondString = newTraits.get(visibleTraits[i + 1]).toString();
+                                        if (!firstString.equals("") && secondString.equals(".")) {
+
+                                        } else if (firstString.equals(".")) {
+                                            if (!firstString.equals(secondString)) {
+                                                valid = false;
+                                                validList.add(false);
+                                                //break;
+                                            } else {
+                                                validList.add(true);
+                                            }
+                                        } else if (!firstString.equals("") && !secondString.equals("")) {
+                                            int firstNumber = Integer.parseInt(firstString);
+                                            int secondNumber = Integer.parseInt(secondString);
+
+                                            if (firstNumber < secondNumber) {
+                                                //Bad measurements...
+                                                //Flag User and tell them to double check
+                                                valid = false;
+                                                validList.add(false);
+                                                //break;
+                                            } else {
+                                                validList.add(true);
+                                            }
+                                        } else if (firstString.equals("") || secondString.equals("")) {
+                                            valid = false;
+                                            validList.add(false);
+                                            missingVal = true;
+                                        }
+                                    }
+                                }
+                                if (!valid) {
+                                    boolean allFalse = true;
+                                    for (int i = 0; i < validList.size(); i++) {
+                                        if (validList.get(i)) {
+                                            allFalse = false;
+                                        }
+                                    }
+                                    final boolean allFalseFinal = allFalse;
+                                    final boolean missingValFinal = missingVal;
+
+                                    Handler handler = new Handler();
+                                    handler.postDelayed(new Runnable() {
+                                        public void run() {
+                                            makeToast("Incorrect Measurements");
+                                            if (missingValFinal) {
+                                                String readBack = "Error, Cannot Move to plot.  Missing a measurement.";
+
+                                                //tts.setLanguage(Locale.getDefault());
+                                                tts.setLanguage(Locale.UK);
+
+                                                if (!tts.isSpeaking()) {
+                                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                                }
+                                            } else {
+
+
+                                                String readBack = "Error, Cannot Move to plot.  Measurements in incorrect order.";
+                                                if (allFalseFinal) {
+                                                    readBack += " Perhaps the stick is flipped.";
+                                                }
+                                                //tts.setLanguage(Locale.getDefault());
+                                                tts.setLanguage(Locale.UK);
+
+                                                if (!tts.isSpeaking()) {
+                                                    tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                                                }
+                                            }
+                                        }
+                                    }, 2000);
+                                }
+                            }
+                            if (valid) {
+                                rangeRight.performClick();
+                            }
+                        }
+                    }
+
+                    traitType.setSelection(pos);
+                }
             }
         });
     }
@@ -2376,11 +2663,44 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                     .setDropDownViewResource(R.layout.spinnerlayout);
             traitType.setAdapter(directionArrayAdapter);
 
+            traitType.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                        if (ep.getBoolean("ScannerMode", false) && tNum.getText().toString().equals("")) {
+                            makeToast("Missing a Measurement.");
+                            String readBack = "Error, Cannot change Traits.  Missing a measurement.";
+
+                            //tts.setLanguage(Locale.getDefault());
+                            tts.setLanguage(Locale.UK);
+
+                            if (!tts.isSpeaking()) {
+                                tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
             traitType.setOnItemSelectedListener(new OnItemSelectedListener() {
 
                 public void onItemSelected(AdapterView<?> arg0, View arg1,
                                            int arg2, long arg3) {
+                    /*
+                    if(ep.getBoolean("ScannerMode",false) && tNum.getText().toString().equals("")) {
+                        System.out.println("Hit there");
+                        makeToast("Missing a Measurement.");
+                        String readBack = "Error, Cannot change Traits.  Missing a measurement.";
 
+                        //tts.setLanguage(Locale.getDefault());
+                        tts.setLanguage(Locale.UK);
+
+                        if (!tts.isSpeaking()) {
+                            tts.speak(readBack, TextToSpeech.QUEUE_FLUSH, null);
+                        }
+                    }
+                    */
                     // This updates the in memory hashmap from database
                     currentTrait = dt.getDetail(traitType.getSelectedItem()
                             .toString());
@@ -2617,6 +2937,16 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                         traitNumeric.setVisibility(View.GONE);
                         traitPercent.setVisibility(View.GONE);
                         traitDate.setVisibility(View.VISIBLE);
+                        //Have to pull out the correct
+                        if(ep.getBoolean("TurnOnPlusOne",false)) {
+                            ((LinearLayout) ((LinearLayout) ((LinearLayout) traitDate.getChildAt(0)).getChildAt(1)).getChildAt(0)).getChildAt(2).setVisibility(View.VISIBLE);
+                        }
+                        else {
+                            ((LinearLayout) ((LinearLayout) ((LinearLayout) traitDate.getChildAt(0)).getChildAt(1)).getChildAt(0)).getChildAt(2).setVisibility(View.INVISIBLE);
+                        }
+
+                        //traitDate.getChildAt(2).setVisibility(View.INVISIBLE);
+                       // traitDate.invalidate();
                         traitCategorical.setVisibility(View.GONE);
                         traitBoolean.setVisibility(View.GONE);
                         traitAudio.setVisibility(View.GONE);
@@ -3648,6 +3978,8 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
                 moveTo(rangeID, range, plot, true);
             }
 
+
+
         } else if (partialReload) {
             partialReload = false;
 
@@ -4631,17 +4963,18 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
         @Override
         protected Void doInBackground(Void... params) {
             if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
-                try {
-                    Document doc = Jsoup
-                            .connect("http://wheatgenetics.org/appupdates/fieldbook/currentversion.html"
-                            )
-                            .get();
-                    Elements spans = doc.select("div[itemprop=softwareVersion]");
-                    currentServerVersion = spans.first().ownText();
-                } catch (IOException e) {
-                    ErrorLog("VersionCheckError.txt", "" + e.getMessage());
-                    e.printStackTrace();
-                }
+//                try {
+//                    Document doc = Jsoup
+//                            .connect("http://wheatgenetics.org/appupdates/fieldbook/currentversion.html"
+//                            )
+//                            .get();
+//                    Elements spans = doc.select("div[itemprop=softwareVersion]");
+                    currentServerVersion = "2.4.5";
+//                    currentServerVersion = spans.first().ownText();
+//                } catch (IOException e) {
+//                    ErrorLog("VersionCheckError.txt", "" + e.getMessage());
+//                    e.printStackTrace();
+//                }
             }
             return null;
         }
@@ -4786,7 +5119,7 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
     //Method for mode to handle previous states
     public void setMode() {
         ep.getBoolean("MultiTraitJump",false);
-        ep.getBoolean("IgnoreExisting",false);
+        ep.getBoolean("IgnoreExisting", false);
         //If Both are false it should be in Audit Mode
         if(!ep.getBoolean("MultiTraitJump",false) && !ep.getBoolean("IgnoreExisting",false)) {
             //Get Fragment object
@@ -4814,5 +5147,71 @@ public class MainActivity extends FragmentActivity implements OnClickListener, M
             edit.putBoolean("IgnoreExisting", true);
             edit.apply();
         }
+    }
+
+    public void updateMediaScanner(File filePath) {
+        MediaScannerConnection.scanFile(this, new String[]{filePath.getAbsolutePath()}, null, null);
+    }
+
+    public void backupDB() {
+        SimpleDateFormat dateStamp = new SimpleDateFormat(
+                "yyyy-MM-dd", Locale.getDefault());
+
+        String fileName = dateStamp.format(Calendar.getInstance().getTime()) + "_" + "systemdb" + DataHelper.DATABASE_VERSION + ".db";
+
+
+        //Getting information to back up the phenofile
+        ArrayList<String> newRange = new ArrayList<>();
+        ArrayList<String>  exportTrait = new ArrayList<>();
+        String[] traits = MainActivity.dt.getVisibleTrait();
+        Collections.addAll(exportTrait, traits);
+        String[] columns = dt.getRangeColumns();
+        Collections.addAll(newRange, columns);
+
+        String[] newRanges = newRange.toArray(new String[newRange.size()]);
+        String[] exportTraits = exportTrait.toArray(new String[exportTrait.size()]);
+
+        // Retrieves the data needed for export
+        // Cursor exportData = dt.getExportDBData(newRanges, exportTraits);
+
+        try {
+            File file = new File(Constants.FIELDEXPORTPATH,
+                    dateStamp.format(Calendar.getInstance().getTime()) + "_table.csv");
+
+            if (file.exists()) {
+                file.delete();
+            }
+
+            FileWriter fw = new FileWriter(file);
+
+            Cursor exportData = MainActivity.dt.convertDatabaseToTable(newRanges, exportTraits);
+            CSVWriter csvWriter = new CSVWriter(fw, exportData);
+
+            // Helper function to merge arrays
+            String[] merged = new String[newRanges.length + exportTraits.length];
+            System.arraycopy(newRanges, 0, merged, 0, newRanges.length);
+            System.arraycopy(exportTraits, 0, merged, newRanges.length, exportTraits.length);
+
+            csvWriter.writeTableFormat(merged, newRanges.length);
+
+            //shareFile(file);
+            updateMediaScanner(file);
+
+        } catch (Exception e) {
+            ErrorLog("ExportDataError.txt", "" + e.getMessage());
+        }
+
+        try {
+            dt.exportDatabase(fileName);
+            File newDb = new File(Constants.BACKUPPATH + "/" + fileName);
+            File newSp = new File(Constants.BACKUPPATH + "/" + fileName + "_sharedpref.xml");
+            updateMediaScanner(newDb);
+            updateMediaScanner(newSp);
+
+        } catch (IOException e) {
+            ErrorLog("DBExportError.txt", "" + e.getMessage());
+        }
+        makeToast("Database And Pheno File Backed up");
+
     }
 }

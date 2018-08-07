@@ -9,7 +9,6 @@ import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteStatement;
-import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.fieldbook.tracker.Search.SearchData;
@@ -17,12 +16,9 @@ import com.fieldbook.tracker.Trait.TraitObject;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
@@ -30,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -1165,6 +1160,7 @@ public class DataHelper {
 
         try {
             File newDb = new File(Constants.BACKUPPATH + "/" + filename);
+            System.out.println(internalDbPath);
             File oldDb = new File(internalDbPath);
 
             File newSp = new File(Constants.BACKUPPATH + "/" + filename + "_sharedpref.xml");
